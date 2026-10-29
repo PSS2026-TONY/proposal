@@ -84,83 +84,65 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
       <section className="proposal-sheet rounded-card border border-line bg-card p-6 shadow-sm">
         <p className="text-xs font-semibold tracking-widest text-accent uppercase">Your solar power system</p>
         <h2 className="font-display mt-1 text-3xl font-semibold">Your custom solar system</h2>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-card border border-line p-4">
+        <div className="mt-3 grid items-start gap-3 lg:grid-cols-2">
+          <div className="rounded-card border border-line p-3">
             <h3 className="font-display text-lg font-semibold">System components</h3>
-            <dl className="mt-3 space-y-3 text-sm">
-              <div className="flex justify-between gap-4 border-b border-line pb-2">
-                <dt className="text-accent">Solar modules</dt>
-                <dd className="text-right break-words">
-                  ({draft.moduleCount}) {draft.moduleModel}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-4 border-b border-line pb-2">
-                <dt className="text-accent">Inverters</dt>
-                <dd className="text-right break-words">
-                  ({draft.inverterCount}) {draft.inverterModel}
-                </dd>
-              </div>
-              {(draft.batteryModel ?? "") !== "" && (
-                <div className="flex justify-between gap-4 border-b border-line pb-2">
-                  <dt className="text-accent">Batteries</dt>
-                  <dd className="text-right break-words">
-                    ({draft.batteryCount || 1}) {draft.batteryModel}
-                  </dd>
-                </div>
-              )}
+            <dl className="mt-2">
+              <SpecRow label="Solar modules" qty={`(${draft.moduleCount})`} detail={draft.moduleModel} />
+              <SpecRow label="Inverters" qty={`(${draft.inverterCount})`} detail={draft.inverterModel} />
+              <SpecRow
+                label="Batteries"
+                qty={`(${draft.batteryModel ? draft.batteryCount || 1 : 0})`}
+                detail={draft.batteryModel || "None"}
+              />
               {isFranklinBattery(draft.batteryModel ?? "") && draft.generatorSmartModule && (
-                <div className="flex justify-between gap-4 border-b border-line pb-2">
-                  <dt className="text-accent">Generator Smart Module</dt>
-                  <dd className="text-right">Franklin battery attachment</dd>
-                </div>
+                <SpecRow label="Generator module" qty="(1)" detail="Generator Smart Module" />
               )}
-              <div className="flex justify-between gap-4">
-                <dt>System size</dt>
-                <dd>{draft.systemKw.toFixed(3)} DC kW</dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt>Year one production</dt>
-                <dd>{draft.yearOneKwh.toLocaleString()} kWh</dd>
-              </div>
+              <SpecRow label="System size" qty="" detail={`${draft.systemKw.toFixed(3)} DC kW`} />
+              <SpecRow label="Year one production" qty="" detail={`${draft.yearOneKwh.toLocaleString()} kWh`} />
             </dl>
           </div>
           <figure className="overflow-hidden rounded-card border border-accent bg-paper">
             <img
               src={src}
               alt={`Aurora design for ${draft.clientName || "this proposal"}`}
-              className="aspect-square w-full object-cover"
+              className="h-40 w-full object-cover"
             />
-            <figcaption className="px-3 py-2 text-xs text-muted">
+            <figcaption className="px-3 py-1 text-xs text-muted">
               Aurora Design for this proposal only. Swap the export and the next job keeps its own image.
             </figcaption>
           </figure>
         </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="h-64 rounded-card border border-line p-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-card border border-line p-3">
             <p className="text-sm font-semibold">Post-solar energy mix</p>
-            <ResponsiveContainer width="100%" height="90%">
-              <PieChart>
-                <Pie data={mix} dataKey="value" nameKey="name" innerRadius={46} outerRadius={72} stroke="none">
-                  <Cell fill="var(--color-accent)" />
-                  <Cell fill="var(--color-line)" />
-                </Pie>
-                <Tooltip formatter={(value) => `${value}%`} />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="h-32">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={mix} dataKey="value" nameKey="name" innerRadius={28} outerRadius={46} stroke="none">
+                    <Cell fill="var(--color-accent)" />
+                    <Cell fill="var(--color-line)" />
+                  </Pie>
+                  <Tooltip formatter={(value) => `${value}%`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
             <p className="text-center text-xs text-muted">
               Solar {Math.round(math.solarShare)}% · Utility {Math.round(100 - math.solarShare)}%
             </p>
           </div>
-          <div className="h-64 rounded-card border border-line p-3">
+          <div className="rounded-card border border-line p-3">
             <p className="text-sm font-semibold">Solar electricity generated</p>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={math.monthlyKwh} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-                <XAxis dataKey="month" tick={{ fontSize: 10 }} interval={0} />
-                <YAxis tick={{ fontSize: 10 }} width={36} />
-                <Tooltip formatter={(value) => [`${value} kWh`, "Estimated"]} />
-                <Bar dataKey="kwh" fill="var(--color-accent)" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="h-36">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={math.monthlyKwh} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <XAxis dataKey="month" tick={{ fontSize: 10 }} interval={0} />
+                  <YAxis tick={{ fontSize: 10 }} width={32} />
+                  <Tooltip formatter={(value) => [`${value} kWh`, "Estimated"]} />
+                  <Bar dataKey="kwh" fill="var(--color-accent)" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </section>
@@ -310,6 +292,16 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
 
       <ClosingPage />
     </article>
+  );
+}
+
+function SpecRow({ label, qty, detail }: { label: string; qty: string; detail: string }) {
+  return (
+    <div className="grid grid-cols-[8.5rem_3.25rem_minmax(0,1fr)] items-baseline gap-x-2 border-b border-line py-1.5 text-sm last:border-b-0">
+      <dt className={qty ? "text-accent" : ""}>{label}</dt>
+      <dd className="text-left tabular-nums">{qty}</dd>
+      <dd className="text-left break-words">{detail}</dd>
+    </div>
   );
 }
 
