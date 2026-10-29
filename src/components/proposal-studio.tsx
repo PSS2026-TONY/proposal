@@ -2,19 +2,28 @@ import { useEffect, useState } from "react";
 import { ImagePlus, Printer, Save, Trash2 } from "lucide-react";
 import { ProposalDocument } from "@/components/proposal-document";
 import {
+  ADDERS,
   BATTERIES,
   INVERTERS,
   PANELS,
   blankDraft,
+  dateInputValue,
   designSrc,
+  emptyAdders,
   equipmentGroups,
   fileToDesignUrl,
   isEnphaseInverter,
+  isFranklinBattery,
   money,
   monthlyBillFromUsage,
   panelWatts,
+  PREPARERS,
+  preparerEmail,
+  pvSystemDollars,
   syncEquipment,
   utilityRateLabel,
+  withContractPrice,
+  type PriceMode,
   type Product,
   type ProposalDraft,
   type UtilityChoice,
@@ -38,7 +47,7 @@ export function ProposalStudio() {
   }, []);
 
   function patch(partial: Partial<ProposalDraft>) {
-    setDraft((current) => ({ ...current, ...partial }));
+    setDraft((current) => withContractPrice({ ...current, ...partial }));
   }
 
   function patchEquipment(partial: Partial<ProposalDraft>) {
@@ -59,13 +68,12 @@ export function ProposalStudio() {
 
   function applyUtility(current: ProposalDraft, choice: UtilityChoice, options: UtilityChoice[]) {
     const annualUsageKwh = current.annualUsageKwh ?? 0;
-    const monthly = monthlyBillFromUsage(annualUsageKwh, choice.ratePerKwh);
+    const monthly = monthlyBillFromUsage(annualUsageKwh, current.utilityRate);
     return {
       ...current,
-      utilityOptions: options,
+      utilityOptions: options.map((item) => ({ id: item.id, name: item.name, ratePerKwh: null })),
       utilityId: choice.id,
       utilityName: choice.name,
-      utilityRate: choice.ratePerKwh,
       monthlyBill: monthly ?? current.monthlyBill,
     };
   }
@@ -76,16 +84,11 @@ export function ProposalStudio() {
     try {
       const result = await lookupUtility({ data: { zip: draft.zip } });
       const options = result.utilities;
-      const selected = options.find((item) => item.ratePerKwh != null) ?? options[0];
+      const selected = options[0];
       if (!selected) throw new Error("NREL did not return a utility for that zip.");
       setDraft((current) => applyUtility({ ...current, zip: draft.zip }, selected, options));
-      const monthly = monthlyBillFromUsage(draft.annualUsageKwh ?? 0, selected.ratePerKwh);
-      const rate = selected.ratePerKwh != null ? utilityRateLabel(selected.ratePerKwh) : "no residential rate listed";
-      setStatus(
-        monthly != null
-          ? `${options.length} ${options.length === 1 ? "utility" : "utilities"}. ${selected.name} · ${rate}. Monthly bill ${money(monthly)}.`
-          : `${selected.name} is listed, but NREL did not publish a residential rate for it.`,
-      );
+      const count = `${options.length} ${options.length === 1 ? "utility" : "utilities"}`;
+      setStatus(`${count}. ${selected.name}. Enter the rate in cents per kWh.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Utility lookup failed.");
     } finally {
@@ -228,13 +231,55 @@ export function ProposalStudio() {
                 {(draft.utilityOptions ?? []).map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
-                    {item.ratePerKwh != null ? ` — ${utilityRateLabel(item.ratePerKwh)}` : " — rate not listed"}
                   </option>
                 ))}
               </select>
             </label>
-            <Field label="Date" value={draft.date} onChange={(date) => patch({ date })} />
-            <Field label="Prepared by" value={draft.preparedBy} onChange={(preparedBy) => patch({ preparedBy })} />
+            <Num
+              label="Utility rate (¢/kWh)"
+              value={draft.utilityRate == null ? 0 : draft.utilityRate * 100}
+              step="0.01"
+              onChange={(cents) =>
+                setDraft((current) => {
+                  const utilityRate = cents > 0 ? cents / 100 : null;
+                  const monthly = monthlyBillFromUsage(current.annualUsageKwh ?? 0, utilityRate);
+                  return { ...current, utilityRate, monthlyBill: monthly ?? current.monthlyBill };
+                })
+              }
+              hint="Type the current rate. The lookup does not fill this in."
+            />
+            <label className="block text-sm font-medium">
+              Date
+              <input
+                type="date"
+                value={dateInputValue(draft.date)}
+                onChange={(event) => patch({ date: event.target.value })}
+                className="mt-1 w-full rounded-lg border border-line bg-card px-3 py-2 font-normal"
+              />
+            </label>
+            <label className="block text-sm font-medium">
+              Prepared by
+              <select
+                value={draft.preparedBy}
+                onChange={(event) => {
+                  const preparedBy = event.target.value;
+                  patch({ preparedBy, preparedEmail: preparerEmail(preparedBy, draft.preparedEmail) });
+                }}
+                className="mt-1 w-full rounded-lg border border-line bg-card px-3 py-2 font-normal"
+              >
+                {!PREPARERS.some((person) => person.name === draft.preparedBy) && draft.preparedBy && (
+                  <option value={draft.preparedBy}>{draft.preparedBy}</option>
+                )}
+                {PREPARERS.map((person) => (
+                  <option key={person.name} value={person.name}>
+                    {person.name}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs font-normal text-muted">
+                {preparerEmail(draft.preparedBy, draft.preparedEmail)}
+              </span>
+            </label>
           </section>
 
           <section className="space-y-3 rounded-card border border-line bg-card p-4">
@@ -280,18 +325,50 @@ export function ProposalStudio() {
               allowEmpty
               emptyLabel="None"
               onChange={(batteryModel) =>
-                patch({
-                  batteryModel,
-                  batteryCount: batteryModel ? Math.max(1, draft.batteryCount || 1) : 0,
-                })
+                setDraft((current) =>
+                  withContractPrice({
+                    ...current,
+                    batteryModel,
+                    batteryCount: batteryModel ? Math.max(1, current.batteryCount || 1) : 0,
+                    generatorSmartModule: isFranklinBattery(batteryModel) ? current.generatorSmartModule : false,
+                  }),
+                )
               }
             />
             {(draft.batteryModel ?? "") !== "" && (
-              <Num
-                label="Battery count"
-                value={draft.batteryCount || 1}
-                onChange={(batteryCount) => patch({ batteryCount })}
-              />
+              <>
+                <Num
+                  label="Battery count"
+                  value={draft.batteryCount || 1}
+                  onChange={(batteryCount) => patch({ batteryCount })}
+                />
+                <Num
+                  label="Battery cost ($)"
+                  value={draft.batteryPrice ?? 0}
+                  step="0.01"
+                  onChange={(batteryPrice) => patch({ batteryPrice })}
+                />
+              </>
+            )}
+            {isFranklinBattery(draft.batteryModel ?? "") && (
+              <>
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={draft.generatorSmartModule ?? false}
+                    onChange={(event) => patch({ generatorSmartModule: event.target.checked })}
+                  />
+                  Generator Smart Module
+                </label>
+                {draft.generatorSmartModule && (
+                  <Num
+                    label="Generator Smart Module ($)"
+                    value={draft.generatorSmartModulePrice ?? 0}
+                    step="0.01"
+                    onChange={(generatorSmartModulePrice) => patch({ generatorSmartModulePrice })}
+                  />
+                )}
+              </>
             )}
           </section>
 
@@ -316,7 +393,81 @@ export function ProposalStudio() {
                 <option value="cash">Cash</option>
               </select>
             </label>
-            <Num label="Price ($)" value={draft.price} onChange={(price) => patch({ price })} />
+            <label className="block text-sm font-medium">
+              PV system
+              <div className="mt-1 flex items-center gap-3">
+                <input
+                  type="number"
+                  step={(draft.priceMode ?? "total") === "perWatt" ? "0.01" : "1"}
+                  value={
+                    (draft.priceMode ?? "total") === "perWatt"
+                      ? draft.pricePerWatt || 0
+                      : draft.pvPrice ?? draft.price
+                  }
+                  onChange={(event) => {
+                    const amount = event.target.value === "" ? 0 : Number(event.target.value);
+                    if ((draft.priceMode ?? "total") === "perWatt") patch({ pricePerWatt: amount });
+                    else patch({ pvPrice: amount });
+                  }}
+                  className="w-full rounded-lg border border-line bg-card px-3 py-2 font-normal"
+                />
+                <label className="flex items-center gap-1 font-normal">
+                  <input
+                    type="radio"
+                    name="price-mode"
+                    checked={(draft.priceMode ?? "total") === "total"}
+                    onChange={() =>
+                      patch({
+                        priceMode: "total" satisfies PriceMode,
+                        pvPrice: pvSystemDollars(draft),
+                      })
+                    }
+                  />
+                  $
+                </label>
+                <label className="flex items-center gap-1 whitespace-nowrap font-normal">
+                  <input
+                    type="radio"
+                    name="price-mode"
+                    checked={draft.priceMode === "perWatt"}
+                    onChange={() => {
+                      const watts = (draft.systemKw || 0) * 1000;
+                      const dollars = pvSystemDollars(draft);
+                      patch({
+                        priceMode: "perWatt",
+                        pricePerWatt: watts > 0 ? Math.round((dollars / watts) * 100) / 100 : draft.pricePerWatt || 0,
+                      });
+                    }}
+                  />
+                  $/Wstc
+                </label>
+              </div>
+              <span className="mt-1 block text-xs font-normal text-muted">
+                {(draft.priceMode ?? "total") === "perWatt"
+                  ? `${draft.systemKw.toFixed(3)} kW DC × $${(draft.pricePerWatt || 0).toFixed(2)}/W = ${money(pvSystemDollars(draft))}`
+                  : `PV system ${money(pvSystemDollars(draft))}`}
+                {(draft.price ?? 0) !== pvSystemDollars(draft) ? ` · Job total ${money(draft.price)}` : ""}
+              </span>
+            </label>
+            <div className="space-y-3 rounded-lg border border-line p-3">
+              <h3 className="text-sm font-semibold">Adders</h3>
+              {ADDERS.map((adder) => (
+                <Num
+                  key={adder.id}
+                  label={`${adder.label} ($)`}
+                  value={draft.adders?.[adder.id] ?? 0}
+                  step="0.01"
+                  onChange={(amount) =>
+                    setDraft((current) =>
+                      withContractPrice({
+                        ...current,
+                        adders: { ...(current.adders ?? emptyAdders()), [adder.id]: amount },
+                      }),
+                    )
+                  }
+                />
+              ))}
+            </div>
             <Num
               label="Annual usage (kWh)"
               value={draft.annualUsageKwh ?? 0}

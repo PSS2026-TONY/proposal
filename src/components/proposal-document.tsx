@@ -12,8 +12,12 @@ import {
 import {
   compute,
   designSrc,
+  formatProposalDate,
+  isFranklinBattery,
   money,
   monthlyPayment,
+  preparerEmail,
+  priceLines,
   productTitle,
   utilityRateLabel,
   type ProposalDraft,
@@ -33,7 +37,7 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
       <section className="proposal-sheet overflow-hidden rounded-card bg-panel text-panel-fg shadow-lg">
         <div className="flex items-center justify-between bg-card px-6 py-4">
           <img src="/logo-lockup.png" alt="Public Service Solar" className="h-16 w-auto" />
-          <p className="text-xs tracking-widest text-muted uppercase">{draft.date}</p>
+          <p className="text-xs tracking-widest text-muted uppercase">{formatProposalDate(draft.date)}</p>
         </div>
         <div className="px-6 pt-10 pb-8">
           <p className="text-xs font-semibold tracking-widest text-accent uppercase">Solar energy redefined</p>
@@ -55,7 +59,7 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
             <p className="text-xs tracking-widest text-panel-muted uppercase">Prepared by</p>
             <p className="mt-1 font-semibold">{draft.preparedBy}</p>
             <p className="text-panel-muted">{draft.preparedPhone}</p>
-            <p className="text-panel-muted">{draft.preparedEmail}</p>
+            <p className="text-panel-muted">{preparerEmail(draft.preparedBy, draft.preparedEmail)}</p>
           </div>
           <div>
             <p className="text-xs tracking-widest text-panel-muted uppercase">Project site</p>
@@ -101,6 +105,12 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
                   <dd className="text-right break-words">
                     ({draft.batteryCount || 1}) {draft.batteryModel}
                   </dd>
+                </div>
+              )}
+              {isFranklinBattery(draft.batteryModel ?? "") && draft.generatorSmartModule && (
+                <div className="flex justify-between gap-4 border-b border-line pb-2">
+                  <dt className="text-accent">Generator Smart Module</dt>
+                  <dd className="text-right">Franklin battery attachment</dd>
                 </div>
               )}
               <div className="flex justify-between gap-4">
@@ -161,6 +171,16 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
         <p className="text-xs font-semibold tracking-wide text-accent uppercase">
           {draft.product === "propel" ? "Prepaid baseline ESA amount" : "Solution price"}
         </p>
+        {priceLines(draft).length > 1 && (
+          <dl className="mt-3 space-y-1 text-sm">
+            {priceLines(draft).map((line) => (
+              <div key={line.label} className="flex justify-between gap-4">
+                <dt className="text-muted">{line.label}</dt>
+                <dd>{money(line.amount)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
         <p className="mt-2 text-sm text-muted">
           {draft.product === "cash"
             ? "Paid in full. Incentives stay with the homeowner."
@@ -278,7 +298,7 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
             }
           />
           <Field k="Product" v={productTitle(draft.product)} />
-          <Field k="Prepared" v={`${draft.preparedBy} · ${draft.date}`} />
+          <Field k="Prepared" v={`${draft.preparedBy} · ${formatProposalDate(draft.date)}`} />
         </dl>
         <p className="mt-4 text-sm text-muted">
           This page carries the same figures as the proposal. Attach your contract template next and these

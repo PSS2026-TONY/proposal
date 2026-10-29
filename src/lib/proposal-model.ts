@@ -1,4 +1,28 @@
 export type Product = "propel" | "ownership" | "cash";
+export type PriceMode = "total" | "perWatt";
+
+export const ADDERS = [
+  { id: "mspUpgrade", label: "MSP upgrade" },
+  { id: "mspReplacement", label: "MSP replacement" },
+  { id: "overheadWire", label: "Overhead wire" },
+  { id: "trench", label: "Trench" },
+  { id: "evOutlet", label: "240V EV outlet" },
+  { id: "groundMount", label: "Ground mount structure" },
+] as const;
+
+export type AdderId = (typeof ADDERS)[number]["id"];
+export type AdderPrices = Record<AdderId, number>;
+
+export function emptyAdders(): AdderPrices {
+  return {
+    mspUpgrade: 0,
+    mspReplacement: 0,
+    overheadWire: 0,
+    trench: 0,
+    evOutlet: 0,
+    groundMount: 0,
+  };
+}
 
 export type UtilityChoice = {
   id: string;
@@ -29,11 +53,18 @@ export type ProposalDraft = {
   inverterModel: string;
   batteryCount: number;
   batteryModel: string;
+  batteryPrice: number;
+  generatorSmartModule: boolean;
+  generatorSmartModulePrice: number;
   systemKw: number;
   yearOneKwh: number;
   monthlyBill: number;
   remainingBill: number;
   monthlyRec: number;
+  priceMode: PriceMode;
+  pvPrice: number;
+  pricePerWatt: number;
+  adders: AdderPrices;
   price: number;
   apr: number;
   termYears: number;
@@ -92,14 +123,76 @@ export function isEnphaseInverter(inverterModel: string): boolean {
   return inverterModel.startsWith("Enphase");
 }
 
+export function isFranklinBattery(batteryModel: string): boolean {
+  return batteryModel.startsWith("Franklin");
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+export function pvSystemDollars(draft: ProposalDraft): number {
+  if ((draft.priceMode ?? "total") === "perWatt") {
+    return roundMoney((draft.systemKw || 0) * 1000 * (draft.pricePerWatt || 0));
+  }
+  return roundMoney(draft.pvPrice ?? draft.price ?? 0);
+}
+
+export function contractPrice(draft: ProposalDraft): number {
+  const battery = draft.batteryModel ? draft.batteryPrice || 0 : 0;
+  const generator =
+    isFranklinBattery(draft.batteryModel ?? "") && draft.generatorSmartModule
+      ? draft.generatorSmartModulePrice || 0
+      : 0;
+  const adders = ADDERS.reduce((sum, adder) => sum + (draft.adders?.[adder.id] || 0), 0);
+  return roundMoney(pvSystemDollars(draft) + battery + generator + adders);
+}
+
+export function withContractPrice(draft: ProposalDraft): ProposalDraft {
+  const price = contractPrice(draft);
+  return price === draft.price ? draft : { ...draft, price };
+}
+
+export type PriceLine = { label: string; amount: number };
+
+export function priceLines(draft: ProposalDraft): PriceLine[] {
+  const lines: PriceLine[] = [
+    {
+      label:
+        (draft.priceMode ?? "total") === "perWatt"
+          ? `PV system · $${(draft.pricePerWatt || 0).toFixed(2)}/W`
+          : "PV system",
+      amount: pvSystemDollars(draft),
+    },
+  ];
+  if (draft.batteryModel && (draft.batteryPrice || 0) > 0) {
+    lines.push({ label: "Batteries", amount: draft.batteryPrice });
+  }
+  if (
+    isFranklinBattery(draft.batteryModel ?? "") &&
+    draft.generatorSmartModule &&
+    (draft.generatorSmartModulePrice || 0) > 0
+  ) {
+    lines.push({ label: "Generator Smart Module", amount: draft.generatorSmartModulePrice });
+  }
+  for (const adder of ADDERS) {
+    const amount = draft.adders?.[adder.id] || 0;
+    if (amount > 0) lines.push({ label: adder.label, amount });
+  }
+  return lines;
+}
+
 /** Size comes from panel watts × count. Enphase microinverters match the panel count. */
 export function syncEquipment(draft: ProposalDraft): ProposalDraft {
   const watts = panelWatts(draft.moduleModel);
   const systemKw =
     watts == null ? draft.systemKw : Number(((watts * draft.moduleCount) / 1000).toFixed(3));
   const inverterCount = isEnphaseInverter(draft.inverterModel) ? draft.moduleCount : draft.inverterCount;
-  if (systemKw === draft.systemKw && inverterCount === draft.inverterCount) return draft;
-  return { ...draft, systemKw, inverterCount };
+  const next =
+    systemKw === draft.systemKw && inverterCount === draft.inverterCount
+      ? draft
+      : { ...draft, systemKw, inverterCount };
+  return withContractPrice(next);
 }
 
 export function equipmentGroups(items: Equipment[]): { manufacturer: string; models: string[] }[] {
@@ -111,6 +204,41 @@ export function equipmentGroups(items: Equipment[]): { manufacturer: string; mod
     else groups.push({ manufacturer: item.manufacturer, models: [label] });
   }
   return groups;
+}
+
+export const PREPARERS = [
+  { name: "Andrew Contrino", email: "Andrew@PublicServiceSolar.com" },
+  { name: "Bruce Beegal", email: "Bruce@PublicServiceSolar.com" },
+  { name: "Charles Lostracco", email: "Charles@PublicServiceSolar.com" },
+  { name: "Mark Carrera", email: "Mark@PublicServiceSolar.com" },
+  { name: "Michael Emmons", email: "Emmons@PublicServiceSolar.com" },
+  { name: "Nick Lostracco", email: "Nick@PublicServiceSolar.com" },
+  { name: "Tony Lostracco", email: "Tony@PublicServiceSolar.com" },
+] as const;
+
+export function preparerEmail(name: string, fallback = ""): string {
+  return PREPARERS.find((person) => person.name === name)?.email ?? fallback;
+}
+
+export function dateInputValue(value: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const named = /^([A-Za-z]+)\s+(\d{1,2}),\s+(\d{4})$/.exec(value.trim());
+  if (!named) return "";
+  const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  const month = months.indexOf(named[1].slice(0, 3).toLowerCase());
+  if (month < 0) return "";
+  return `${named[3]}-${String(month + 1).padStart(2, "0")}-${named[2].padStart(2, "0")}`;
+}
+
+export function formatProposalDate(value: string): string {
+  const iso = dateInputValue(value);
+  if (!iso) return value || "—";
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, (month ?? 1) - 1, day).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export const MONTHS = [
@@ -145,8 +273,8 @@ export function blankDraft(): ProposalDraft {
     annualUsageKwh: 12000,
     preparedBy: "Tony Lostracco",
     preparedPhone: "(888) 270-2884",
-    preparedEmail: "tony@publicservicesolar.com",
-    date: "Oct 28, 2026",
+    preparedEmail: "Tony@PublicServiceSolar.com",
+    date: "2026-10-28",
     product: "propel",
     moduleCount: 25,
     moduleModel: "REC Solar REC460AA PURE-RX-DC",
@@ -154,11 +282,18 @@ export function blankDraft(): ProposalDraft {
     inverterModel: "Enphase Energy IQ8X-80-M-DOM-US @ 240 V",
     batteryCount: 0,
     batteryModel: "",
+    batteryPrice: 0,
+    generatorSmartModule: false,
+    generatorSmartModulePrice: 0,
     systemKw: 11.5,
     yearOneKwh: 13409,
     monthlyBill: 224.25,
     remainingBill: 15,
     monthlyRec: 27.94,
+    priceMode: "total",
+    pvPrice: 22885,
+    pricePerWatt: 2.99,
+    adders: emptyAdders(),
     price: 22885,
     apr: 8.99,
     termYears: 25,
