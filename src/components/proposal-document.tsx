@@ -84,7 +84,7 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
       <section className="proposal-sheet system-sheet rounded-card border border-line bg-card p-4 shadow-sm">
         <p className="text-xs font-semibold tracking-widest text-accent uppercase">Your solar power system</p>
         <h2 className="font-display mt-1 text-2xl font-semibold">Your custom solar system</h2>
-        <div className="system-grid mt-2">
+        <div className="system-main mt-2">
           <div className="rounded-card border border-line p-3">
             <h3 className="font-display text-base font-semibold">System components</h3>
             <dl className="mt-1">
@@ -102,18 +102,18 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
               <SpecRow label="Year one production" qty="" detail={`${draft.yearOneKwh.toLocaleString()} kWh`} />
             </dl>
           </div>
-          <figure className="overflow-hidden rounded-card border border-accent bg-paper">
+          <figure className="system-figure overflow-hidden rounded-card border border-accent bg-paper">
             <img
               src={src}
               alt={`Aurora design for ${draft.clientName || "this proposal"}`}
-              className="system-photo h-32 w-full object-cover"
+              className="system-photo h-56 w-full object-cover"
             />
             <figcaption className="px-2 py-1 text-[11px] leading-tight text-muted">
               Aurora Design for this proposal only.
             </figcaption>
           </figure>
         </div>
-        <div className="system-grid mt-2">
+        <div className="system-grid system-charts mt-2">
           <div className="rounded-card border border-line px-3 pt-2 pb-1">
             <p className="text-sm font-semibold">Post-solar energy mix</p>
             <div className="system-chart h-24">
@@ -264,7 +264,7 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
             k="Equipment"
             v={[
               `${draft.moduleCount}× ${draft.moduleModel}`,
-              `${draft.inverterCount}× ${draft.inverterModel}`,
+              `${draft.inverterCount}× ${equipmentDetail(draft.inverterModel)}`,
               (draft.batteryModel ?? "") !== "" ? `${draft.batteryCount || 1}× ${draft.batteryModel}` : "",
             ]
               .filter(Boolean)
@@ -296,7 +296,11 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
 }
 
 function equipmentDetail(value: string): string {
-  return value.replace(/\s*(?:@\s*240\s*VAC?|\[\s*240\s*V\s*\])/gi, "").trim();
+  return value
+    .replace(/\s*@\s*240\s*v(?:ac)?/gi, "")
+    .replace(/\s*\[\s*240\s*v\s*\]/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function SpecRow({ label, qty, detail }: { label: string; qty: string; detail: string }) {

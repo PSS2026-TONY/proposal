@@ -97,10 +97,10 @@ export const PANELS: Panel[] = [
 
 export const INVERTERS: Equipment[] = [
   { manufacturer: "Enphase Energy", model: "IQ8H-3P-72-E-US" },
-  { manufacturer: "Enphase Energy", model: "IQ8HC-72-M-DOM-US @240 VAC" },
-  { manufacturer: "Enphase Energy", model: "IQ8MC-72-M-US [240V]" },
+  { manufacturer: "Enphase Energy", model: "IQ8HC-72-M-DOM-US" },
+  { manufacturer: "Enphase Energy", model: "IQ8MC-72-M-US" },
   { manufacturer: "Enphase Energy", model: "IQ8P-3P-72-E-US" },
-  { manufacturer: "Enphase Energy", model: "IQ8X-80-M-DOM-US @ 240 V" },
+  { manufacturer: "Enphase Energy", model: "IQ8X-80-M-DOM-US" },
   { manufacturer: "Enphase Energy", model: "IQ9N-3P-208-A-US" },
   { manufacturer: "Enphase Energy", model: "IQ9N-3P-277-A-US" },
   { manufacturer: "Tesla", model: "Powerwall 3 (internal inverter)" },
@@ -122,6 +122,14 @@ export function panelWatts(moduleModel: string): number | null {
 
 export function isEnphaseInverter(inverterModel: string): boolean {
   return inverterModel.startsWith("Enphase");
+}
+
+export function displayModel(value: string): string {
+  return value
+    .replace(/\s*@\s*240\s*v(?:ac)?/gi, "")
+    .replace(/\s*\[\s*240\s*v\s*\]/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 export function isFranklinBattery(batteryModel: string): boolean {
@@ -189,10 +197,11 @@ export function syncEquipment(draft: ProposalDraft): ProposalDraft {
   const systemKw =
     watts == null ? draft.systemKw : Number(((watts * draft.moduleCount) / 1000).toFixed(3));
   const inverterCount = isEnphaseInverter(draft.inverterModel) ? draft.moduleCount : draft.inverterCount;
+  const inverterModel = displayModel(draft.inverterModel);
   const next =
-    systemKw === draft.systemKw && inverterCount === draft.inverterCount
+    systemKw === draft.systemKw && inverterCount === draft.inverterCount && inverterModel === draft.inverterModel
       ? draft
-      : { ...draft, systemKw, inverterCount };
+      : { ...draft, systemKw, inverterCount, inverterModel };
   return withContractPrice(next);
 }
 
@@ -281,7 +290,7 @@ export function blankDraft(): ProposalDraft {
     moduleCount: 25,
     moduleModel: "REC Solar REC460AA PURE-RX-DC",
     inverterCount: 25,
-    inverterModel: "Enphase Energy IQ8X-80-M-DOM-US @ 240 V",
+    inverterModel: "Enphase Energy IQ8X-80-M-DOM-US",
     batteryCount: 0,
     batteryModel: "",
     batteryPrice: 0,

@@ -565,6 +565,9 @@ export function ProposalStudio() {
                 Print
               </button>
             </div>
+            <p className="mt-2 text-xs text-muted">
+              The web address at the bottom is added by the browser. In the print window, turn off Headers and footers to remove it.
+            </p>
             {status && <p className="mt-2 text-sm text-muted">{status}</p>}
             <ul className="mt-3 space-y-2">
               {saved.length === 0 && <li className="text-sm text-muted">Nothing saved yet. Each save keeps its own image.</li>}
