@@ -19,6 +19,7 @@ import {
   preparerEmail,
   priceLines,
   productTitle,
+  srecCaption,
   utilityRateLabel,
   type ProposalDraft,
 } from "@/lib/proposal-model";
@@ -211,10 +212,11 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
                 a={money(0)}
                 b={money(math.payment)}
               />
-              <Row label="Minus monthly average REC" a={money(0)} b={`-${money(draft.monthlyRec)}`} />
+              <Row label="Minus monthly average SREC" a={money(0)} b={draft.monthlyRec > 0 ? `-${money(draft.monthlyRec)}` : money(0)} />
               <Row label="Total average monthly payments" a={money(math.totalUtility)} b={money(math.totalSolar)} strong />
             </tbody>
           </table>
+          <p className="mt-2 text-xs text-muted">{srecCaption(draft.state ?? "")}</p>
         </div>
 
         <p className="mt-5 text-lg">

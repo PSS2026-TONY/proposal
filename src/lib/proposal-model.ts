@@ -37,6 +37,7 @@ export type ProposalDraft = {
   clientEmail: string;
   address: string;
   zip: string;
+  state: string;
   utilityId: string;
   utilityName: string;
   utilityRate: number | null;
@@ -266,6 +267,7 @@ export function blankDraft(): ProposalDraft {
     clientEmail: "davis7x@hotmail.com",
     address: "3929 Brookridge Dr, Mechanicsburg, PA 17050",
     zip: "17050",
+    state: "PA",
     utilityId: "",
     utilityName: "",
     utilityRate: null,
@@ -300,6 +302,28 @@ export function blankDraft(): ProposalDraft {
     paymentOverride: "",
     imageDataUrl: null,
   };
+}
+
+/** Residential SREC dollars per 1,000 kWh. PVWatts does not publish these prices. */
+export const SREC_PER_1000_KWH: Record<string, number> = {
+  NJ: 77,
+  PA: 25,
+  FL: 0,
+};
+
+export function monthlySrec(state: string, yearOneKwh: number): number {
+  const rate = SREC_PER_1000_KWH[state.trim().toUpperCase()];
+  if (rate == null || rate <= 0 || !Number.isFinite(yearOneKwh) || yearOneKwh <= 0) return 0;
+  return Math.round(((yearOneKwh / 1000) * rate) / 12 * 100) / 100;
+}
+
+export function srecCaption(state: string): string {
+  const code = state.trim().toUpperCase();
+  if (code === "NJ") return "New Jersey residential SREC · $77 per 1,000 kWh";
+  if (code === "PA") return "Pennsylvania residential SREC · $25 per 1,000 kWh";
+  if (code === "FL") return "No residential SREC in Florida";
+  if (!code) return "Choose a state to calculate the SREC";
+  return `No residential SREC rate for ${code}`;
 }
 
 export function utilityRateLabel(rate: number | null | undefined): string {

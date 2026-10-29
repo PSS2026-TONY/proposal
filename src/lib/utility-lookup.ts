@@ -3,6 +3,7 @@ import type { UtilityChoice } from "@/lib/proposal-model";
 
 export type UtilityLookup = {
   utilities: UtilityChoice[];
+  state: string;
 };
 
 type NrelUtility = {
@@ -63,7 +64,7 @@ function failure(error: unknown, fallback: string): Error {
   return new Error(safe ? `${fallback} (${safe})` : fallback);
 }
 
-async function coordinatesForZip(zip: string): Promise<{ lat: number; lon: number }> {
+async function coordinatesForZip(zip: string): Promise<{ lat: number; lon: number; state: string }> {
   let response: Response;
   try {
     response = await fetch(`https://api.zippopotam.us/us/${zip.slice(0, 5)}`, {
@@ -76,15 +77,16 @@ async function coordinatesForZip(zip: string): Promise<{ lat: number; lon: numbe
   if (response.status === 404) throw new Error("That zip code was not found.");
   if (!response.ok) throw new Error("Could not find that zip.");
   const body = (await response.json()) as {
-    places?: { latitude?: string; longitude?: string }[];
+    places?: { latitude?: string; longitude?: string; "state abbreviation"?: string }[];
   };
   const place = body.places?.[0];
   const lat = Number(place?.latitude);
   const lon = Number(place?.longitude);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+  const state = place?.["state abbreviation"]?.trim().toUpperCase() ?? "";
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || !state) {
     throw new Error("That zip code was not found.");
   }
-  return { lat, lon };
+  return { lat, lon, state };
 }
 
 export const lookupUtility = createServerFn({ method: "POST" })
@@ -101,7 +103,7 @@ export const lookupUtility = createServerFn({ method: "POST" })
       throw new Error("NREL_API_KEY is not set on this site.");
     }
 
-    const { lat, lon } = await coordinatesForZip(data.zip);
+    const { lat, lon, state } = await coordinatesForZip(data.zip);
     const url = new URL("https://developer.nlr.gov/api/utility_rates/v3.json");
     url.searchParams.set("api_key", key);
     url.searchParams.set("lat", String(lat));
@@ -129,5 +131,5 @@ export const lookupUtility = createServerFn({ method: "POST" })
     if (utilities.length === 0) {
       throw new Error("NREL did not return a utility for that zip.");
     }
-    return { utilities };
+    return { utilities, state };
   });

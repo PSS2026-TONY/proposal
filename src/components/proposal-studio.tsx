@@ -20,6 +20,8 @@ import {
   PREPARERS,
   preparerEmail,
   pvSystemDollars,
+  srecCaption,
+  monthlySrec,
   syncEquipment,
   utilityRateLabel,
   withContractPrice,
@@ -86,9 +88,12 @@ export function ProposalStudio() {
       const options = result.utilities;
       const selected = options[0];
       if (!selected) throw new Error("NREL did not return a utility for that zip.");
-      setDraft((current) => applyUtility({ ...current, zip: draft.zip }, selected, options));
+      setDraft((current) => {
+        const next = applyUtility({ ...current, zip: draft.zip, state: result.state }, selected, options);
+        return { ...next, monthlyRec: monthlySrec(result.state, next.yearOneKwh) };
+      });
       const count = `${options.length} ${options.length === 1 ? "utility" : "utilities"}`;
-      setStatus(`${count}. ${selected.name}. Enter the rate in cents per kWh.`);
+      setStatus(`${count}. ${selected.name}. ${result.state}. Enter the rate in cents per kWh.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Utility lookup failed.");
     } finally {
@@ -304,7 +309,17 @@ export function ProposalStudio() {
                   : `${draft.moduleCount} × ${panelWatts(draft.moduleModel)} W`}
               </span>
             </label>
-            <Num label="Year-one production (kWh)" value={draft.yearOneKwh} onChange={(yearOneKwh) => patch({ yearOneKwh })} />
+            <Num
+              label="Year-one production (kWh)"
+              value={draft.yearOneKwh}
+              onChange={(yearOneKwh) =>
+                setDraft((current) => ({
+                  ...current,
+                  yearOneKwh,
+                  monthlyRec: monthlySrec(current.state ?? "", yearOneKwh),
+                }))
+              }
+            />
             <Choice
               label="Inverter"
               value={draft.inverterModel}
@@ -484,7 +499,37 @@ export function ProposalStudio() {
                 : "Choose a utility with a rate. Monthly bill = annual kWh × rate ÷ 12."}
             </p>
             <Num label="Remaining bill with solar ($)" value={draft.remainingBill} onChange={(remainingBill) => patch({ remainingBill })} step="0.01" />
-            <Num label="Monthly REC ($)" value={draft.monthlyRec} onChange={(monthlyRec) => patch({ monthlyRec })} step="0.01" />
+            <label className="block text-sm font-medium">
+              State
+              <select
+                value={draft.state ?? "PA"}
+                onChange={(event) => {
+                  const state = event.target.value;
+                  setDraft((current) => ({
+                    ...current,
+                    state,
+                    monthlyRec: monthlySrec(state, current.yearOneKwh),
+                  }));
+                }}
+                className="mt-1 w-full rounded-lg border border-line bg-card px-3 py-2 font-normal"
+              >
+                {!["NJ", "PA", "FL"].includes(draft.state ?? "") && draft.state && (
+                  <option value={draft.state}>{draft.state}</option>
+                )}
+                <option value="NJ">New Jersey</option>
+                <option value="PA">Pennsylvania</option>
+                <option value="FL">Florida</option>
+              </select>
+            </label>
+            <label className="block text-sm font-medium">
+              Monthly SREC
+              <input
+                readOnly
+                value={money(draft.monthlyRec)}
+                className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2 font-normal text-ink"
+              />
+              <span className="mt-1 block text-xs font-normal text-muted">{srecCaption(draft.state ?? "")}</span>
+            </label>
             {draft.product !== "cash" && (
               <>
                 <div className="flex flex-wrap gap-2">
