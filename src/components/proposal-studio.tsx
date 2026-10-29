@@ -12,10 +12,12 @@ import {
   isEnphaseInverter,
   panelWatts,
   syncEquipment,
+  utilityRateLabel,
   type Product,
   type ProposalDraft,
 } from "@/lib/proposal-model";
 import { deleteProposal, listProposals, saveProposal, type SavedProposal } from "@/lib/proposal-store";
+import { lookupUtility } from "@/lib/utility-lookup";
 
 const RATES = [8.99, 9.99, 10.99];
 
@@ -24,6 +26,7 @@ export function ProposalStudio() {
   const [saved, setSaved] = useState<SavedProposal[]>([]);
   const [status, setStatus] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [lookingUp, setLookingUp] = useState(false);
 
   useEffect(() => {
     listProposals()
@@ -48,6 +51,20 @@ export function ProposalStudio() {
       setStatus("This proposal now has its own Aurora image.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not use that image.");
+    }
+  }
+
+  async function onLookupUtility() {
+    setLookingUp(true);
+    setStatus("Looking up the utility…");
+    try {
+      const result = await lookupUtility({ data: { address: draft.address } });
+      patch({ utilityName: result.utilityName, utilityRate: result.ratePerKwh });
+      setStatus(`${result.utilityName} · ${utilityRateLabel(result.ratePerKwh)} residential`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Utility lookup failed.");
+    } finally {
+      setLookingUp(false);
     }
   }
 
@@ -159,7 +176,21 @@ export function ProposalStudio() {
             <Field label="Client name" value={draft.clientName} onChange={(clientName) => patch({ clientName })} />
             <Field label="Phone" value={draft.clientPhone} onChange={(clientPhone) => patch({ clientPhone })} />
             <Field label="Email" value={draft.clientEmail} onChange={(clientEmail) => patch({ clientEmail })} />
-            <Field label="Address" value={draft.address} onChange={(address) => patch({ address })} />
+            <Field label="Address or zip" value={draft.address} onChange={(address) => patch({ address })} />
+            <button
+              type="button"
+              onClick={() => void onLookupUtility()}
+              disabled={lookingUp || draft.address.trim().length < 5}
+              className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink disabled:opacity-50"
+            >
+              {lookingUp ? "Looking up…" : "Look up utility"}
+            </button>
+            {(draft.utilityName || draft.utilityRate != null) && (
+              <p className="text-sm text-muted">
+                {draft.utilityName || "Utility"}
+                {draft.utilityRate != null ? ` · ${utilityRateLabel(draft.utilityRate)} residential` : ""}
+              </p>
+            )}
             <Field label="Date" value={draft.date} onChange={(date) => patch({ date })} />
             <Field label="Prepared by" value={draft.preparedBy} onChange={(preparedBy) => patch({ preparedBy })} />
           </section>

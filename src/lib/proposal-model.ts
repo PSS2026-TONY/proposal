@@ -6,6 +6,8 @@ export type ProposalDraft = {
   clientPhone: string;
   clientEmail: string;
   address: string;
+  utilityName: string;
+  utilityRate: number | null;
   preparedBy: string;
   preparedPhone: string;
   preparedEmail: string;
@@ -125,6 +127,8 @@ export function blankDraft(): ProposalDraft {
     clientPhone: "(717) 802-1607",
     clientEmail: "davis7x@hotmail.com",
     address: "3929 Brookridge Dr, Mechanicsburg, PA 17050",
+    utilityName: "",
+    utilityRate: null,
     preparedBy: "Tony Lostracco",
     preparedPhone: "(888) 270-2884",
     preparedEmail: "tony@publicservicesolar.com",
@@ -147,6 +151,11 @@ export function blankDraft(): ProposalDraft {
     paymentOverride: "",
     imageDataUrl: null,
   };
+}
+
+export function utilityRateLabel(rate: number | null | undefined): string {
+  if (rate == null || !Number.isFinite(rate)) return "";
+  return `${(rate * 100).toFixed(2)}¢/kWh`;
 }
 
 export function money(n: number, digits = 2): string {

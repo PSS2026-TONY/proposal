@@ -15,6 +15,7 @@ import {
   money,
   monthlyPayment,
   productTitle,
+  utilityRateLabel,
   type ProposalDraft,
 } from "@/lib/proposal-model";
 
@@ -59,6 +60,12 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
           <div>
             <p className="text-xs tracking-widest text-panel-muted uppercase">Project site</p>
             <p className="mt-1">{draft.address || "—"}</p>
+            {draft.utilityName ? (
+              <p className="mt-1 text-panel-muted">
+                {draft.utilityName}
+                {draft.utilityRate != null ? ` · ${utilityRateLabel(draft.utilityRate)}` : ""}
+              </p>
+            ) : null}
           </div>
         </div>
       </section>
