@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Public Service Solar - Proposal Generator</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --red: #e74c3c;
+    --dark: #1a1a1a;
+    --gray: #f5f5f5;
+  }
+  body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #fff; color: #333; }
+  .header { background: linear-gradient(135deg, #111 0%, #333 100%); color: white; padding: 20px; text-align: center; }
+  .logo { font-size: 1.4em; font-weight: bold; }
+  .logo span { color: var(--red); }
+  .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+  .form-section { background: var(--gray); padding: 20px; border-radius: 12px; margin-bottom: 30px; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+  label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.9em; }
+  input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 1em; }
+  button { background: var(--red); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 1em; cursor: pointer; margin-top: 15px; }
+  button:hover { opacity: 0.9; }
+  .proposal { display: none; }
+  .proposal.active { display: block; }
+  .card { background: white; border: 1px solid #eee; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .highlight { background: #fff5f5; border-left: 4px solid var(--red); padding: 15px; }
+  .numbers { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+  .chart-container { max-width: 400px; margin: 0 auto; }
+  @media print { .form-section, button { display: none; } .proposal { display: block !important; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">PUBLIC <span>SERVICE</span> SOLAR</div>
+  <div>Proposal Generator</div>
+</div>
+
+<div class="container">
+  <div class="form-section">
+    <h2>Enter Proposal Data</h2>
+    <div class="form-grid">
+      <div>
+        <label>Client Name</label>
+        <input type="text" id="clientName" value="James Davis">
+      </div>
+      <div>
+        <label>Address</label>
+        <input type="text" id="address" value="3929 Brookridge Dr, Mechanicsburg, PA 17050">
+      </div>
+      <div>
+        <label>System Size (kW DC)</label>
+        <input type="number" id="systemSize" value="11.5" step="0.1">
+      </div>
+      <div>
+        <label>Year 1 Production (kWh)</label>
+        <input type="number" id="production" value="13409">
+      </div>
+      <div>
+        <label>Avg Monthly Electric Bill ($)</label>
+        <input type="number" id="monthlyBill" value="224.25" step="0.01">
+      </div>
+      <div>
+        <label>Remaining Bill w/ Solar ($)</label>
+        <input type="number" id="remainingBill" value="15" step="0.01">
+      </div>
+      <div>
+        <label>Monthly REC Incentive ($)</label>
+        <input type="number" id="recIncentive" value="27.94" step="0.01">
+      </div>
+      <div>
+        <label>Product Type</label>
+        <select id="productType">
+          <option value="propel">PROPEL - Prepaid ESA to Ownership</option>
+          <option value="ownership">REC Ownership</option>
+        </select>
+      </div>
+      <div>
+        <label>Prepaid / Solution Price ($)</label>
+        <input type="number" id="solutionPrice" value="22885">
+      </div>
+      <div>
+        <label>Estimated Monthly Payment ($)</label>
+        <input type="number" id="monthlyPayment" value="193.95">
+      </div>
+      <div>
+        <label>Interest Rate (%)</label>
+        <input type="number" id="interestRate" value="8.99" step="0.01">
+      </div>
+    </div>
+    <button onclick="generateProposal()">Generate Proposal</button>
+  </div>
+
+  <div id="proposal" class="proposal">
+    <div class="card">
+      <h1 id="propTitle">PROPEL – Prepaid- Energy Service Agreement to Ownership</h1>
+      <p id="clientInfo"></p>
+      <div class="highlight">
+        <div id="baselineAmount" style="font-size: 1.8em; font-weight: bold; color: var(--red);"></div>
+        <div id="productDesc"></div>
+      </div>
+    </div>
+
+    <div class="card numbers">
+      <div>
+        <h3>Monthly Cost Comparison</h3>
+        <table id="costTable">
+          <tr><th>Monthly Cost</th><th>Utility Only</th><th>With Solar</th></tr>
+          <tr><td>Average Remaining Electric Bill</td><td id="utilBill"></td><td id="solarBill"></td></tr>
+          <tr><td>Monthly Solar Payments</td><td>$0</td><td id="solarPay"></td></tr>
+          <tr><td>Minus Monthly Average REC Incentive</td><td>$0</td><td id="recNeg"></td></tr>
+          <tr><td><strong>Total Average Monthly Payments</strong></td><td id="totalUtil"></td><td id="totalSolar"></td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>Savings Snapshot</h3>
+        <div class="highlight">
+          <div>Year 1 Average Monthly Savings: <strong id="monthlySavings"></strong></div>
+          <div>Lifetime Savings (25 yr): <strong id="lifetimeSavings"></strong></div>
+          <div>Estimated Monthly Payment: <strong id="estPayment"></strong></div>
+        </div>
+        <p style="margin-top:15px;">Over the next 25 years, you'll pay <strong id="utility25" style="color:var(--red);"></strong> to the utility company — money you could keep by going solar.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>System Overview</h3>
+      <p id="systemInfo"></p>
+      <div style="display: flex; flex-wrap: wrap; gap: 30px; justify-content: center;">
+        <div class="chart-container">
+          <canvas id="pieChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="barChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <button onclick="window.print()">Print / Save as PDF</button>
+  </div>
+</div>
+
+<script>
+let pieChart, barChart;
+
+function generateProposal() {
+  const clientName = document.getElementById('clientName').value;
+  const address = document.getElementById('address').value;
+  const systemSize = parseFloat(document.getElementById('systemSize').value);
+  const production = parseFloat(document.getElementById('production').value);
+  const monthlyBill = parseFloat(document.getElementById('monthlyBill').value);
+  const remainingBill = parseFloat(document.getElementById('remainingBill').value);
+  const recIncentive = parseFloat(document.getElementById('recIncentive').value);
+  const productType = document.getElementById('productType').value;
+  const solutionPrice = parseFloat(document.getElementById('solutionPrice').value);
+  const monthlyPayment = parseFloat(document.getElementById('monthlyPayment').value);
+  const interestRate = parseFloat(document.getElementById('interestRate').value);
+
+  // Calculations
+  const totalUtil = monthlyBill;
+  const totalSolar = remainingBill + monthlyPayment - recIncentive;
+  const monthlySavings = monthlyBill - totalSolar;
+  const lifetimeSavings = monthlySavings * 12 * 25;
+  const utility25 = monthlyBill * 12 * 25;
+
+  // Update UI
+  document.getElementById('clientInfo').innerHTML = `<strong>Prepared for:</strong> ${clientName}<br>${address}`;
+  document.getElementById('baselineAmount').textContent = '$' + solutionPrice.toLocaleString(undefined, {minimumFractionDigits:2});
+  
+  if (productType === 'propel') {
+    document.getElementById('propTitle').textContent = 'PROPEL – Prepaid- Energy Service Agreement to Ownership';
+    document.getElementById('productDesc').innerHTML = `Cash Flow Positive Way to Finance your Prepaid ESA to Ownership<br>25 YEAR – Propel – PREPAID– ${interestRate}%`;
+  } else {
+    document.getElementById('propTitle').textContent = 'REC Ownership Details';
+    document.getElementById('productDesc').innerHTML = `Solution Price<br>Financing options available`;
+  }
+
+  document.getElementById('utilBill').textContent = '$' + monthlyBill.toFixed(2);
+  document.getElementById('solarBill').textContent = '$' + remainingBill.toFixed(2);
+  document.getElementById('solarPay').textContent = '$' + monthlyPayment.toFixed(2);
+  document.getElementById('recNeg').textContent = '-$' + recIncentive.toFixed(2);
+  document.getElementById('totalUtil').textContent = '$' + totalUtil.toFixed(2);
+  document.getElementById('totalSolar').textContent = '$' + totalSolar.toFixed(2);
+  document.getElementById('monthlySavings').textContent = '$' + monthlySavings.toFixed(2);
+  document.getElementById('lifetimeSavings').textContent = '$' + lifetimeSavings.toLocaleString(undefined, {maximumFractionDigits:0});
+  document.getElementById('estPayment').textContent = '$' + monthlyPayment.toFixed(2);
+  document.getElementById('utility25').textContent = '$' + utility25.toLocaleString(undefined, {maximumFractionDigits:0});
+  document.getElementById('systemInfo').innerHTML = `<strong>System Size:</strong> ${systemSize} DC kW (STC)<br><strong>Year One Production:</strong> ${production.toLocaleString()} kWh`;
+
+  // Charts
+  const solarOffset = Math.min(100, (production / 12 / (monthlyBill / 0.15)) * 100); // rough estimate
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('pieChart'), {
+    type: 'pie',
+    data: {
+      labels: ['Solar', 'Utility'],
+      datasets: [{
+        data: [Math.round(solarOffset), 100 - Math.round(solarOffset)],
+        backgroundColor: ['#e74c3c', '#ddd']
+      }]
+    },
+    options: { plugins: { title: { display: true, text: 'Post Solar Energy Mix' } } }
+  });
+
+  const monthlyProd = production / 12;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const seasonal = [0.65,0.75,0.95,1.15,1.25,1.3,1.25,1.2,1.05,0.9,0.75,0.6];
+  const barData = seasonal.map(s => Math.round(monthlyProd * s));
+
+  if (barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [{
+        label: 'kWh',
+        data: barData,
+        backgroundColor: '#e74c3c'
+      }]
+    },
+    options: { 
+      plugins: { title: { display: true, text: 'Solar Electricity Generated (estimated)' } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  document.getElementById('proposal').classList.add('active');
+  document.getElementById('proposal').scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
