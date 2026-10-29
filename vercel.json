@@ -1,1 +1,13 @@
-open curly(headers":("Content-Type":"text/html"))
+{
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/html"
+        }
+      ]
+    }
+  ]
+}
