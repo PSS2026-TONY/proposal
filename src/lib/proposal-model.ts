@@ -1,13 +1,23 @@
 export type Product = "propel" | "ownership" | "cash";
 
+export type UtilityChoice = {
+  id: string;
+  name: string;
+  ratePerKwh: number | null;
+};
+
 export type ProposalDraft = {
   id: string;
   clientName: string;
   clientPhone: string;
   clientEmail: string;
   address: string;
+  zip: string;
+  utilityId: string;
   utilityName: string;
   utilityRate: number | null;
+  utilityOptions: UtilityChoice[];
+  annualUsageKwh: number;
   preparedBy: string;
   preparedPhone: string;
   preparedEmail: string;
@@ -127,8 +137,12 @@ export function blankDraft(): ProposalDraft {
     clientPhone: "(717) 802-1607",
     clientEmail: "davis7x@hotmail.com",
     address: "3929 Brookridge Dr, Mechanicsburg, PA 17050",
+    zip: "17050",
+    utilityId: "",
     utilityName: "",
     utilityRate: null,
+    utilityOptions: [],
+    annualUsageKwh: 12000,
     preparedBy: "Tony Lostracco",
     preparedPhone: "(888) 270-2884",
     preparedEmail: "tony@publicservicesolar.com",
@@ -156,6 +170,16 @@ export function blankDraft(): ProposalDraft {
 export function utilityRateLabel(rate: number | null | undefined): string {
   if (rate == null || !Number.isFinite(rate)) return "";
   return `${(rate * 100).toFixed(2)}¢/kWh`;
+}
+
+/** Residential dollars per month from yearly kWh times the utility's $/kWh rate. */
+export function monthlyBillFromUsage(
+  annualUsageKwh: number,
+  ratePerKwh: number | null | undefined,
+): number | null {
+  if (ratePerKwh == null || !Number.isFinite(ratePerKwh) || ratePerKwh < 0) return null;
+  if (!Number.isFinite(annualUsageKwh) || annualUsageKwh < 0) return null;
+  return Math.round(((annualUsageKwh * ratePerKwh) / 12) * 100) / 100;
 }
 
 export function money(n: number, digits = 2): string {

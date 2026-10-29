@@ -10,11 +10,14 @@ import {
   equipmentGroups,
   fileToDesignUrl,
   isEnphaseInverter,
+  money,
+  monthlyBillFromUsage,
   panelWatts,
   syncEquipment,
   utilityRateLabel,
   type Product,
   type ProposalDraft,
+  type UtilityChoice,
 } from "@/lib/proposal-model";
 import { deleteProposal, listProposals, saveProposal, type SavedProposal } from "@/lib/proposal-store";
 import { lookupUtility } from "@/lib/utility-lookup";
@@ -54,13 +57,35 @@ export function ProposalStudio() {
     }
   }
 
+  function applyUtility(current: ProposalDraft, choice: UtilityChoice, options: UtilityChoice[]) {
+    const annualUsageKwh = current.annualUsageKwh ?? 0;
+    const monthly = monthlyBillFromUsage(annualUsageKwh, choice.ratePerKwh);
+    return {
+      ...current,
+      utilityOptions: options,
+      utilityId: choice.id,
+      utilityName: choice.name,
+      utilityRate: choice.ratePerKwh,
+      monthlyBill: monthly ?? current.monthlyBill,
+    };
+  }
+
   async function onLookupUtility() {
     setLookingUp(true);
-    setStatus("Looking up the utility…");
+    setStatus("Looking up utilities for that zip…");
     try {
-      const result = await lookupUtility({ data: { address: draft.address } });
-      patch({ utilityName: result.utilityName, utilityRate: result.ratePerKwh });
-      setStatus(`${result.utilityName} · ${utilityRateLabel(result.ratePerKwh)} residential`);
+      const result = await lookupUtility({ data: { zip: draft.zip } });
+      const options = result.utilities;
+      const selected = options.find((item) => item.ratePerKwh != null) ?? options[0];
+      if (!selected) throw new Error("NREL did not return a utility for that zip.");
+      setDraft((current) => applyUtility({ ...current, zip: draft.zip }, selected, options));
+      const monthly = monthlyBillFromUsage(draft.annualUsageKwh ?? 0, selected.ratePerKwh);
+      const rate = selected.ratePerKwh != null ? utilityRateLabel(selected.ratePerKwh) : "no residential rate listed";
+      setStatus(
+        monthly != null
+          ? `${options.length} ${options.length === 1 ? "utility" : "utilities"}. ${selected.name} · ${rate}. Monthly bill ${money(monthly)}.`
+          : `${selected.name} is listed, but NREL did not publish a residential rate for it.`,
+      );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Utility lookup failed.");
     } finally {
@@ -176,21 +201,38 @@ export function ProposalStudio() {
             <Field label="Client name" value={draft.clientName} onChange={(clientName) => patch({ clientName })} />
             <Field label="Phone" value={draft.clientPhone} onChange={(clientPhone) => patch({ clientPhone })} />
             <Field label="Email" value={draft.clientEmail} onChange={(clientEmail) => patch({ clientEmail })} />
-            <Field label="Address or zip" value={draft.address} onChange={(address) => patch({ address })} />
+            <Field label="Address" value={draft.address} onChange={(address) => patch({ address })} />
+            <Field label="Zip" value={draft.zip ?? ""} onChange={(zip) => patch({ zip })} />
             <button
               type="button"
               onClick={() => void onLookupUtility()}
-              disabled={lookingUp || draft.address.trim().length < 5}
+              disabled={lookingUp || !/^\d{5}(-\d{4})?$/.test((draft.zip ?? "").trim())}
               className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink disabled:opacity-50"
             >
-              {lookingUp ? "Looking up…" : "Look up utility"}
+              {lookingUp ? "Looking up…" : "Look up utilities"}
             </button>
-            {(draft.utilityName || draft.utilityRate != null) && (
-              <p className="text-sm text-muted">
-                {draft.utilityName || "Utility"}
-                {draft.utilityRate != null ? ` · ${utilityRateLabel(draft.utilityRate)} residential` : ""}
-              </p>
-            )}
+            <label className="block text-sm font-medium">
+              Utility
+              <select
+                value={draft.utilityId ?? ""}
+                onChange={(event) => {
+                  const options = draft.utilityOptions ?? [];
+                  const choice = options.find((item) => item.id === event.target.value);
+                  if (!choice) return;
+                  setDraft((current) => applyUtility(current, choice, options));
+                }}
+                disabled={(draft.utilityOptions ?? []).length === 0}
+                className="mt-1 w-full rounded-lg border border-line bg-card px-3 py-2 font-normal disabled:opacity-60"
+              >
+                {(draft.utilityOptions ?? []).length === 0 && <option value="">Look up a zip first</option>}
+                {(draft.utilityOptions ?? []).map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                    {item.ratePerKwh != null ? ` — ${utilityRateLabel(item.ratePerKwh)}` : " — rate not listed"}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Field label="Date" value={draft.date} onChange={(date) => patch({ date })} />
             <Field label="Prepared by" value={draft.preparedBy} onChange={(preparedBy) => patch({ preparedBy })} />
           </section>
@@ -275,7 +317,21 @@ export function ProposalStudio() {
               </select>
             </label>
             <Num label="Price ($)" value={draft.price} onChange={(price) => patch({ price })} />
-            <Num label="Current monthly bill ($)" value={draft.monthlyBill} onChange={(monthlyBill) => patch({ monthlyBill })} step="0.01" />
+            <Num
+              label="Annual usage (kWh)"
+              value={draft.annualUsageKwh ?? 0}
+              onChange={(annualUsageKwh) =>
+                setDraft((current) => {
+                  const monthly = monthlyBillFromUsage(annualUsageKwh, current.utilityRate);
+                  return { ...current, annualUsageKwh, monthlyBill: monthly ?? current.monthlyBill };
+                })
+              }
+            />
+            <p className="text-xs font-normal text-muted">
+              {draft.utilityRate != null
+                ? `Monthly bill ${money(monthlyBillFromUsage(draft.annualUsageKwh ?? 0, draft.utilityRate) ?? draft.monthlyBill)} = ${(draft.annualUsageKwh ?? 0).toLocaleString()} kWh × ${utilityRateLabel(draft.utilityRate)} ÷ 12`
+                : "Choose a utility with a rate. Monthly bill = annual kWh × rate ÷ 12."}
+            </p>
             <Num label="Remaining bill with solar ($)" value={draft.remainingBill} onChange={(remainingBill) => patch({ remainingBill })} step="0.01" />
             <Num label="Monthly REC ($)" value={draft.monthlyRec} onChange={(monthlyRec) => patch({ monthlyRec })} step="0.01" />
             {draft.product !== "cash" && (

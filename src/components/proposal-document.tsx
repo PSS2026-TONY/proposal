@@ -66,6 +66,12 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
                 {draft.utilityRate != null ? ` · ${utilityRateLabel(draft.utilityRate)}` : ""}
               </p>
             ) : null}
+            {(draft.annualUsageKwh ?? 0) > 0 && (
+              <p className="mt-1 text-panel-muted">
+                {draft.annualUsageKwh.toLocaleString()} kWh/year
+                {draft.utilityRate != null ? ` × ${utilityRateLabel(draft.utilityRate)}` : ""}
+              </p>
+            )}
           </div>
         </div>
       </section>
