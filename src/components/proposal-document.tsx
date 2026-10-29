@@ -81,15 +81,15 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
         </div>
       </section>
 
-      <section className="proposal-sheet rounded-card border border-line bg-card p-6 shadow-sm">
+      <section className="proposal-sheet system-sheet rounded-card border border-line bg-card p-4 shadow-sm">
         <p className="text-xs font-semibold tracking-widest text-accent uppercase">Your solar power system</p>
-        <h2 className="font-display mt-1 text-3xl font-semibold">Your custom solar system</h2>
-        <div className="mt-3 grid items-start gap-3 lg:grid-cols-2">
+        <h2 className="font-display mt-1 text-2xl font-semibold">Your custom solar system</h2>
+        <div className="system-grid mt-2">
           <div className="rounded-card border border-line p-3">
-            <h3 className="font-display text-lg font-semibold">System components</h3>
-            <dl className="mt-2">
+            <h3 className="font-display text-base font-semibold">System components</h3>
+            <dl className="mt-1">
               <SpecRow label="Solar modules" qty={`(${draft.moduleCount})`} detail={draft.moduleModel} />
-              <SpecRow label="Inverters" qty={`(${draft.inverterCount})`} detail={draft.inverterModel} />
+              <SpecRow label="Inverters" qty={`(${draft.inverterCount})`} detail={equipmentDetail(draft.inverterModel)} />
               <SpecRow
                 label="Batteries"
                 qty={`(${draft.batteryModel ? draft.batteryCount || 1 : 0})`}
@@ -106,20 +106,20 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
             <img
               src={src}
               alt={`Aurora design for ${draft.clientName || "this proposal"}`}
-              className="h-40 w-full object-cover"
+              className="system-photo h-32 w-full object-cover"
             />
-            <figcaption className="px-3 py-1 text-xs text-muted">
-              Aurora Design for this proposal only. Swap the export and the next job keeps its own image.
+            <figcaption className="px-2 py-1 text-[11px] leading-tight text-muted">
+              Aurora Design for this proposal only.
             </figcaption>
           </figure>
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-card border border-line p-3">
+        <div className="system-grid mt-2">
+          <div className="rounded-card border border-line px-3 pt-2 pb-1">
             <p className="text-sm font-semibold">Post-solar energy mix</p>
-            <div className="h-32">
+            <div className="system-chart h-24">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={mix} dataKey="value" nameKey="name" innerRadius={28} outerRadius={46} stroke="none">
+                  <Pie data={mix} dataKey="value" nameKey="name" innerRadius={22} outerRadius={36} stroke="none">
                     <Cell fill="var(--color-accent)" />
                     <Cell fill="var(--color-line)" />
                   </Pie>
@@ -131,15 +131,15 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
               Solar {Math.round(math.solarShare)}% · Utility {Math.round(100 - math.solarShare)}%
             </p>
           </div>
-          <div className="rounded-card border border-line p-3">
+          <div className="rounded-card border border-line px-3 pt-2 pb-1">
             <p className="text-sm font-semibold">Solar electricity generated</p>
-            <div className="h-36">
+            <div className="system-chart h-28">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={math.monthlyKwh} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="month" tick={{ fontSize: 10 }} interval={0} />
-                  <YAxis tick={{ fontSize: 10 }} width={32} />
+                  <XAxis dataKey="month" tick={{ fontSize: 9 }} interval={0} />
+                  <YAxis tick={{ fontSize: 9 }} width={28} />
                   <Tooltip formatter={(value) => [`${value} kWh`, "Estimated"]} />
-                  <Bar dataKey="kwh" fill="var(--color-accent)" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="kwh" fill="var(--color-accent)" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -293,6 +293,10 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
       <ClosingPage />
     </article>
   );
+}
+
+function equipmentDetail(value: string): string {
+  return value.replace(/\s*(?:@\s*240\s*VAC?|\[\s*240\s*V\s*\])/gi, "").trim();
 }
 
 function SpecRow({ label, qty, detail }: { label: string; qty: string; detail: string }) {
