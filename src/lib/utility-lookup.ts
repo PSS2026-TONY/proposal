@@ -56,6 +56,37 @@ function utilitiesFrom(outputs: NrelBody["outputs"]): UtilityChoice[] {
   return utilities;
 }
 
+function failure(error: unknown, fallback: string): Error {
+  if (error instanceof Error && error.message.startsWith("NREL")) return error;
+  const message = error instanceof Error ? error.message : "";
+  const safe = message.replace(/api_key=[^&\s]+/gi, "api_key=redacted").slice(0, 160);
+  return new Error(safe ? `${fallback} (${safe})` : fallback);
+}
+
+async function coordinatesForZip(zip: string): Promise<{ lat: number; lon: number }> {
+  let response: Response;
+  try {
+    response = await fetch(`https://api.zippopotam.us/us/${zip.slice(0, 5)}`, {
+      headers: { accept: "application/json", "user-agent": "PublicServiceSolar/1.0" },
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch (error) {
+    throw failure(error, "Could not find that zip.");
+  }
+  if (response.status === 404) throw new Error("That zip code was not found.");
+  if (!response.ok) throw new Error("Could not find that zip.");
+  const body = (await response.json()) as {
+    places?: { latitude?: string; longitude?: string }[];
+  };
+  const place = body.places?.[0];
+  const lat = Number(place?.latitude);
+  const lon = Number(place?.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    throw new Error("That zip code was not found.");
+  }
+  return { lat, lon };
+}
+
 export const lookupUtility = createServerFn({ method: "POST" })
   .validator((input: { zip: string }) => {
     const zip = input.zip.trim();
@@ -70,20 +101,24 @@ export const lookupUtility = createServerFn({ method: "POST" })
       throw new Error("NREL_API_KEY is not set on this site.");
     }
 
-    const url = new URL("https://developer.nrel.gov/api/utility_rates/v3.json");
+    const { lat, lon } = await coordinatesForZip(data.zip);
+    const url = new URL("https://developer.nlr.gov/api/utility_rates/v3.json");
     url.searchParams.set("api_key", key);
-    url.searchParams.set("address", data.zip);
+    url.searchParams.set("lat", String(lat));
+    url.searchParams.set("lon", String(lon));
 
     let body: NrelBody;
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(12_000) });
+      const response = await fetch(url, {
+        headers: { accept: "application/json", "user-agent": "PublicServiceSolar/1.0" },
+        signal: AbortSignal.timeout(12_000),
+      });
       body = (await response.json()) as NrelBody;
       if (!response.ok && !(body.errors && body.errors.length > 0)) {
         throw new Error("NREL could not look up that zip.");
       }
     } catch (error) {
-      if (error instanceof Error && error.message.startsWith("NREL")) throw error;
-      throw new Error("NREL did not respond. Try the zip again.");
+      throw failure(error, "NREL did not respond. Try the zip again.");
     }
 
     if (body.errors && body.errors.length > 0) {
