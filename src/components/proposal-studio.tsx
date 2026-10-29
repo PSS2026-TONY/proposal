@@ -80,13 +80,6 @@ export function ProposalStudio() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <a
-              href="/public-service-solar-proposal.zip"
-              download="public-service-solar-proposal.zip"
-              className="rounded-lg border border-white/15 px-3 py-2 text-sm"
-            >
-              Download
-            </a>
             <button
               type="button"
               onClick={() => {
