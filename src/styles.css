@@ -34,19 +34,59 @@
   }
 }
 
+@page {
+  size: letter landscape;
+  margin: 0.4in;
+}
+
 @media print {
+  html,
+  body {
+    background: white !important;
+    overflow: visible !important;
+    width: auto !important;
+  }
+
   .no-print {
     display: none !important;
   }
-  .proposal-sheet {
+
+  .proposal-layout {
+    display: block !important;
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .proposal-pages {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    gap: 0 !important;
+  }
+
+  .proposal-sheet,
+  .proposal-close {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 7.6in;
+    box-sizing: border-box;
+    margin: 0 !important;
     box-shadow: none !important;
     break-inside: avoid;
-  }
-  .proposal-close {
-    break-before: page;
+    break-after: page;
+    page-break-inside: avoid;
+    page-break-after: always;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  .proposal-close {
+    break-before: auto;
+  }
+
   .credit-human-chart {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;

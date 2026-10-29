@@ -34,7 +34,7 @@ export function ProposalDocument({ draft }: { draft: ProposalDraft }) {
   ];
 
   return (
-    <article className="mx-auto flex w-full min-w-0 max-w-3xl flex-col gap-6">
+    <article className="proposal-pages mx-auto flex w-full min-w-0 max-w-[11in] flex-col gap-6">
       <section className="proposal-sheet overflow-hidden rounded-card bg-panel text-panel-fg shadow-lg">
         <div className="flex items-center justify-between bg-card px-6 py-4">
           <img src="/logo-lockup.png" alt="Public Service Solar" className="h-16 w-auto" />

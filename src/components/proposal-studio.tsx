@@ -119,7 +119,7 @@ export function ProposalStudio() {
   return (
     <div className="min-h-screen bg-paper">
       <header className="no-print border-b border-line bg-panel text-panel-fg">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
+        <div className="mx-auto flex max-w-[90rem] items-center justify-between gap-4 px-4 py-4">
           <div className="flex items-center gap-3">
             <img src="/logo-mark.png" alt="" className="h-12 w-auto" />
             <div>
@@ -152,7 +152,7 @@ export function ProposalStudio() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
+      <div className="proposal-layout mx-auto grid max-w-[90rem] gap-6 px-4 py-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
         <div className="min-w-0 lg:col-start-2 lg:row-start-1">
           <ProposalDocument draft={draft} />
         </div>
