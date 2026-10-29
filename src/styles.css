@@ -1,0 +1,54 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #141414;
+  --color-paper: #f3efe8;
+  --color-card: #fffcf8;
+  --color-accent: #d3121a;
+  --color-accent-ink: #fff7f5;
+  --color-muted: #6f675f;
+  --color-line: #e4ddd3;
+  --color-panel: #1c1b19;
+  --color-panel-fg: #f6f1ea;
+  --color-panel-muted: #b7aea4;
+  --color-good: #1f6b45;
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --radius-card: 1rem;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  html {
+    font-family: var(--font-sans);
+    background: var(--color-paper);
+    color: var(--color-ink);
+  }
+  body {
+    min-height: 100%;
+    overflow-x: hidden;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .proposal-sheet {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  .proposal-close {
+    break-before: page;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .credit-human-chart {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
